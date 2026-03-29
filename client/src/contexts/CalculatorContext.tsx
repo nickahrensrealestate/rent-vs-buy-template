@@ -135,7 +135,7 @@ const DEFAULT_INPUTS: CalculatorInputs = {
   downPaymentPct: 10,
   interestRate: 6.38,
   loanTermYears: 30,
-  propertyTaxRate: 0.50,
+  propertyTaxRate: 1.0,
   hoaMonthly: 150,
   homeInsuranceRate: 0.50,
   maintenanceRate: 1.0,

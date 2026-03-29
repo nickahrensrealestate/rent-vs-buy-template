@@ -218,7 +218,7 @@ export default function Home() {
                 onChange={v => setInput('hoaMonthly', v)} prefix="$" hint="Denver avg: ~$150/mo" />
               <SliderRow label="Property Tax" value={inputs.propertyTaxRate} min={0.1} max={3} step={0.05}
                 onChange={v => setInput('propertyTaxRate', v)} suffix="% / yr"
-                hint="Colorado effective rate: ~0.50%" />
+                hint="Denver Metro avg: ~1.0% effective rate" />
 
               {/* Appreciation toggle */}
               <div className="flex flex-col gap-1.5">
