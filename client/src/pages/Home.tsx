@@ -198,6 +198,14 @@ export default function Home() {
               <SliderRow label="Property Tax" value={inputs.propertyTaxRate} min={0.1} max={3} step={0.05}
                 onChange={v => setInput('propertyTaxRate', v)} suffix="% / yr"
                 hint="Colorado effective rate: ~0.50%" />
+              <div className="border-t border-gray-100 pt-4 mt-2 space-y-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Buying — Advanced</p>
+                <SliderRow label="Loan Term" value={inputs.loanTermYears} min={10} max={30} step={5}
+                  onChange={v => setInput('loanTermYears', v)} suffix=" years" />
+                <SliderRow label="Extra Monthly Payment" value={inputs.extraMonthlyPayment} min={0} max={2000} step={50}
+                  onChange={v => setInput('extraMonthlyPayment', v)} prefix="$"
+                  hint="Pay extra to reduce interest & pay off early" />
+              </div>
             </div>
 
             {/* Right: Renting */}
@@ -210,12 +218,7 @@ export default function Home() {
                 hint="Historical Denver avg: ~3%/yr" />
 
               <div className="border-t border-gray-100 pt-4 mt-2 space-y-5">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Advanced</p>
-                <SliderRow label="Loan Term" value={inputs.loanTermYears} min={10} max={30} step={5}
-                  onChange={v => setInput('loanTermYears', v)} suffix=" years" />
-                <SliderRow label="Extra Monthly Payment" value={inputs.extraMonthlyPayment} min={0} max={2000} step={50}
-                  onChange={v => setInput('extraMonthlyPayment', v)} prefix="$"
-                  hint="Pay extra to reduce interest & pay off early" />
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Renting — Advanced</p>
                 <SliderRow label="Lease Break Fee" value={inputs.leaseBreakMonths} min={0} max={6} step={1}
                   onChange={v => setInput('leaseBreakMonths', v)} suffix=" months rent" />
               </div>
@@ -308,16 +311,36 @@ export default function Home() {
 
         {/* ── SECTION 3: Equity Snapshot ──────────────────────────────────── */}
         <div>
-          <h2 className="font-bold text-gray-900 text-base mb-3">Your Equity Over Time</h2>
+          <h2 className="font-bold text-gray-900 text-base mb-1">Your Equity Over Time</h2>
+          <p className="text-sm text-gray-500 mb-4">Equity = your down payment + principal paid down + home appreciation. Renting builds <strong className="text-red-600">$0 equity</strong> — your net worth from housing stays flat.</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             {derived.equityMilestones.map(m => (
-              <div key={m.years} className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
-                <p className="text-xs text-gray-400 mb-1">{m.years === 1 ? '1 Year' : `${m.years} Years`}</p>
-                <p className="font-mono text-lg font-black text-green-700">{formatCurrencyCompact(m.equity)}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{formatPercent(m.equityPct)} owned</p>
-                <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(m.equityPct, 100)}%` }} />
+              <div key={m.years} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-400 mb-2 font-semibold">{m.years === 1 ? '1 Year' : `${m.years} Years`}</p>
+                <p className="font-mono text-xl font-black text-green-700 mb-3">{formatCurrencyCompact(m.equity)}</p>
+                {/* Breakdown stacked bar */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-blue-500 flex-shrink-0" />
+                    <span className="text-gray-500 flex-1">Down payment</span>
+                    <span className="font-mono font-semibold text-blue-700">{formatCurrencyCompact(m.downPaymentAmount)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-green-500 flex-shrink-0" />
+                    <span className="text-gray-500 flex-1">Loan paid down</span>
+                    <span className="font-mono font-semibold text-green-700">{formatCurrencyCompact(m.principalPaid)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400 flex-shrink-0" />
+                    <span className="text-gray-500 flex-1">Appreciation</span>
+                    <span className="font-mono font-semibold text-emerald-700">{formatCurrencyCompact(m.appreciationGain)}</span>
+                  </div>
                 </div>
+                {/* Visual equity bar */}
+                <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${Math.min(m.equityPct, 100)}%` }} />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{formatPercent(m.equityPct)} of home value</p>
               </div>
             ))}
           </div>
@@ -459,8 +482,9 @@ export default function Home() {
               <div className="space-y-4">
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
                   <span className="inline-block mr-1">ℹ</span>
-                  Owner net worth = home equity minus cash to close. Renter net worth = down payment invested at {inputs.investmentReturnRate}% annually, plus monthly savings from cheaper rent.
+                  Owner net worth = home equity (appreciation + loan paydown + down payment) minus cash to close. Renter net worth = down payment invested at {inputs.investmentReturnRate}% annually, plus monthly savings from cheaper rent.
                   Rent rises {inputs.rentInflationRate}%/yr. Mortgage stays fixed. Home appreciates {inputs.appreciationRate}%/yr.
+                  <strong className="block mt-1 text-orange-700">★ Renter's housing net worth = $0 at every milestone. Any renter "net worth" shown comes only from investing — not from housing.</strong>
                 </div>
                 <div className="mb-1">
                   <SliderRow label="Investment Return Rate (Renter)" value={inputs.investmentReturnRate} min={1} max={15} step={0.5}
@@ -501,7 +525,79 @@ export default function Home() {
               </div>
             </Accordion>
 
-            {/* Savings Race Chart */}
+
+
+            {/* True Cost of Renting */}
+            <Accordion title="True Cost of Renting" subtitle="How much total rent will you pay over 1, 5, 10, and 30 years — vs. the equity you'd have from owning?">
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[1, 5, 10, 30].map(years => {
+                    let cumRent = 0;
+                    let r = inputs.monthlyRent;
+                    for (let m = 0; m < years * 12; m++) {
+                      if (m > 0 && m % 12 === 0) r *= (1 + inputs.rentInflationRate / 100);
+                      cumRent += r;
+                    }
+                    // Equity from owning at same milestone
+                    const milestone = derived.equityMilestones.find(e => e.years === years);
+                    const ownerEquity = milestone ? milestone.equity : null;
+                    return (
+                      <div key={years} className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                        <p className="text-xs text-red-500 mb-1 font-semibold">{years === 1 ? '1 Year' : `${years} Years`}</p>
+                        <p className="font-mono text-base font-bold text-red-800">{formatCurrencyCompact(cumRent)}</p>
+                        <p className="text-xs text-red-400 mt-0.5">$0 equity</p>
+                        {ownerEquity !== null && (
+                          <p className="font-mono text-base font-bold text-green-700 mt-2">{formatCurrencyCompact(ownerEquity)}</p>
+                        )}
+                        {ownerEquity !== null && (
+                          <p className="text-xs text-green-600 mt-0.5">equity if owned</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
+                  ★ Assumes rent increases {inputs.rentInflationRate}% per year. All rent payments build zero equity.
+                  After 30 years as a renter, your monthly rent would be{' '}
+                  <strong>{formatCurrency(inputs.monthlyRent * Math.pow(1 + inputs.rentInflationRate / 100, 30))}/mo</strong>.
+                </p>
+              </div>
+            </Accordion>
+
+            <Accordion title="Mortgage Interest Tax Benefit" subtitle="Rough estimate of your potential deduction in year one">
+              <div className="space-y-3">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                  ⚠ Educational estimate only. Consult a CPA before making tax decisions.
+                </div>
+                {(() => {
+                  const firstYearInterest = derived.amortizationSchedule.filter(r => r.year === 1).reduce((s, r) => s + r.interest, 0);
+                  const annualTax = inputs.homePrice * inputs.propertyTaxRate / 100;
+                  const salt = Math.min(annualTax, 10000);
+                  const total = firstYearInterest + salt;
+                  const stdSingle = 15000;
+                  const stdMarried = 30000;
+                  const benefitSingle = Math.max(0, total - stdSingle);
+                  const benefitMarried = Math.max(0, total - stdMarried);
+                  return (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-gray-600">Year 1 Deductions</p>
+                        <div className="flex justify-between text-sm"><span className="text-gray-600">Mortgage interest</span><span className="font-mono font-bold">{formatCurrency(firstYearInterest)}</span></div>
+                        <div className="flex justify-between text-sm"><span className="text-gray-600">Property tax (SALT cap)</span><span className="font-mono font-bold">{formatCurrency(salt)}</span></div>
+                        <div className="flex justify-between text-sm font-semibold border-t pt-2"><span>Total itemized</span><span className="font-mono">{formatCurrency(total)}</span></div>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-gray-600">Estimated Tax Savings (22%)</p>
+                        <div className="flex justify-between text-sm"><span className="text-gray-600">Single filer</span><span className="font-mono font-bold text-green-700">{formatCurrency(benefitSingle * 0.22)}</span></div>
+                        <div className="flex justify-between text-sm"><span className="text-gray-600">Married filing jointly</span><span className="font-mono font-bold text-green-700">{formatCurrency(benefitMarried * 0.22)}</span></div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </Accordion>
+
+            {/* Savings Race Chart — last accordion */}
             <Accordion title="The Savings Race (Chart)" subtitle="Can you save faster than home prices rise? See the gap over 6 years">
               <div className="space-y-3">
                 <p className="text-sm text-gray-600">
@@ -540,68 +636,6 @@ export default function Home() {
                     <Area type="monotone" dataKey="Home Price Increase" stroke="#dc2626" strokeWidth={2} fill="url(#sg2)" />
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
-            </Accordion>
-
-            {/* True Cost of Renting */}
-            <Accordion title="True Cost of Renting" subtitle="How much total rent will you pay over 5, 10, and 30 years?">
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[1, 5, 10, 30].map(years => {
-                    let cumRent = 0;
-                    let r = inputs.monthlyRent;
-                    for (let m = 0; m < years * 12; m++) {
-                      if (m > 0 && m % 12 === 0) r *= (1 + inputs.rentInflationRate / 100);
-                      cumRent += r;
-                    }
-                    return (
-                      <div key={years} className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-                        <p className="text-xs text-red-500 mb-1">{years === 1 ? '1 Year' : `${years} Years`}</p>
-                        <p className="font-mono text-base font-bold text-red-800">{formatCurrencyCompact(cumRent)}</p>
-                        <p className="text-xs text-red-400 mt-0.5">$0 equity</p>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
-                  ★ Assumes rent increases {inputs.rentInflationRate}% per year. All rent payments build zero equity.
-                  After 30 years as a renter, your monthly rent would be{' '}
-                  <strong>{formatCurrency(inputs.monthlyRent * Math.pow(1 + inputs.rentInflationRate / 100, 30))}/mo</strong>.
-                </p>
-              </div>
-            </Accordion>
-
-            {/* Tax Benefit */}
-            <Accordion title="Mortgage Interest Tax Benefit" subtitle="Rough estimate of your potential deduction in year one">
-              <div className="space-y-3">
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-                  ⚠ Educational estimate only. Consult a CPA before making tax decisions.
-                </div>
-                {(() => {
-                  const firstYearInterest = derived.amortizationSchedule.filter(r => r.year === 1).reduce((s, r) => s + r.interest, 0);
-                  const annualTax = inputs.homePrice * inputs.propertyTaxRate / 100;
-                  const salt = Math.min(annualTax, 10000);
-                  const total = firstYearInterest + salt;
-                  const stdSingle = 15000;
-                  const stdMarried = 30000;
-                  const benefitSingle = Math.max(0, total - stdSingle);
-                  const benefitMarried = Math.max(0, total - stdMarried);
-                  return (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold text-gray-600">Year 1 Deductions</p>
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">Mortgage interest</span><span className="font-mono font-bold">{formatCurrency(firstYearInterest)}</span></div>
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">Property tax (SALT cap)</span><span className="font-mono font-bold">{formatCurrency(salt)}</span></div>
-                        <div className="flex justify-between text-sm font-semibold border-t pt-2"><span>Total itemized</span><span className="font-mono">{formatCurrency(total)}</span></div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold text-gray-600">Estimated Tax Savings (22%)</p>
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">Single filer</span><span className="font-mono font-bold text-green-700">{formatCurrency(benefitSingle * 0.22)}</span></div>
-                        <div className="flex justify-between text-sm"><span className="text-gray-600">Married filing jointly</span><span className="font-mono font-bold text-green-700">{formatCurrency(benefitMarried * 0.22)}</span></div>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             </Accordion>
 

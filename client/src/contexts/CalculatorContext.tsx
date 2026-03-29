@@ -69,6 +69,10 @@ export interface EquityMilestone {
   equityWithExtra: number;
   homeValueWithExtra: number;
   loanBalanceWithExtra: number;
+  // Breakdown: equity = downPayment + principalPaid + appreciationGain
+  downPaymentAmount: number;
+  principalPaid: number;       // loan paydown since purchase
+  appreciationGain: number;    // home value increase since purchase
 }
 
 export interface NetWorthMilestone {
@@ -231,21 +235,36 @@ function deriveCalculations(inputs: CalculatorInputs): CalculatorDerived {
   const payoffMonthStandard = amortizationSchedule.length;
   const payoffMonthWithExtra = amortizationWithExtra.length;
 
-  // Equity milestones
+  // Equity milestones — correct breakdown:
+  // Total equity = downPayment + principalPaid + appreciationGain
+  // principalPaid = loanAmount - currentBalance
+  // appreciationGain = currentHomeValue - originalHomePrice
   const milestoneYears = [1, 3, 5, 10];
   const equityMilestones: EquityMilestone[] = milestoneYears.map(years => {
     const m = years * 12;
-    const row = amortizationSchedule[Math.min(m - 1, amortizationSchedule.length - 1)];
+    const idx = Math.min(m - 1, amortizationSchedule.length - 1);
+    const row = amortizationSchedule[idx];
     const rowExtra = amortizationWithExtra[Math.min(m - 1, amortizationWithExtra.length - 1)];
+
+    const currentHomeValue = row ? row.homeValue : homePrice * Math.pow(1 + appreciationRate / 100 / 12, m);
+    const currentBalance = row ? row.balance : loanAmount;
+    const principalPaid = loanAmount - currentBalance;          // actual loan paydown
+    const appreciationGainVal = currentHomeValue - homePrice;   // pure price appreciation
+    // Total equity = down payment already paid + principal paid down + appreciation
+    const totalEquity = downPaymentAmount + principalPaid + appreciationGainVal;
+
     return {
       years,
-      equity: row ? row.equity : 0,
-      homeValue: row ? row.homeValue : homePrice,
-      loanBalance: row ? row.balance : loanAmount,
-      equityPct: row ? (row.equity / row.homeValue) * 100 : 0,
-      equityWithExtra: rowExtra ? rowExtra.equity : 0,
-      homeValueWithExtra: rowExtra ? rowExtra.homeValue : homePrice,
-      loanBalanceWithExtra: rowExtra ? rowExtra.balance : loanAmount,
+      equity: totalEquity,
+      homeValue: currentHomeValue,
+      loanBalance: currentBalance,
+      equityPct: (totalEquity / currentHomeValue) * 100,
+      equityWithExtra: rowExtra ? (downPaymentAmount + (loanAmount - rowExtra.balance) + (rowExtra.homeValue - homePrice)) : totalEquity,
+      homeValueWithExtra: rowExtra ? rowExtra.homeValue : currentHomeValue,
+      loanBalanceWithExtra: rowExtra ? rowExtra.balance : currentBalance,
+      downPaymentAmount,
+      principalPaid,
+      appreciationGain: appreciationGainVal,
     };
   });
 
