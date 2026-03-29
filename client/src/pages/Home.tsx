@@ -309,10 +309,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── SECTION 3: Equity Snapshot ──────────────────────────────────── */}
+        {/* ── SECTION 3: Net Worth from Buying ────────────────────────────── */}
         <div>
-          <h2 className="font-bold text-gray-900 text-base mb-1">Your Equity Over Time</h2>
-          <p className="text-sm text-gray-500 mb-4">Equity = your down payment + principal paid down + home appreciation. Renting builds <strong className="text-red-600">$0 equity</strong> — your net worth from housing stays flat.</p>
+          <h2 className="font-bold text-gray-900 text-base mb-1">Your Net Worth if You Buy</h2>
+          <p className="text-sm text-gray-500 mb-4">Every mortgage payment builds real wealth. Your net worth grows through three engines: your down payment, loan paydown, and home appreciation. Renting builds <strong className="text-red-600">$0</strong> of this.</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             {derived.equityMilestones.map(m => (
               <div key={m.years} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -340,7 +340,6 @@ export default function Home() {
                 <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${Math.min(m.equityPct, 100)}%` }} />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">{formatPercent(m.equityPct)} of home value</p>
               </div>
             ))}
           </div>
@@ -353,7 +352,54 @@ export default function Home() {
           )}
         </div>
 
-        {/* ── SECTION 4: Lease Break Insight ─────────────────────────────── */}
+        {/* ── SECTION 4: Savings Race ─────────────────────────────────────── */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="font-bold text-gray-900 text-base mb-1">Can You Save Faster Than Prices Rise?</h2>
+          <p className="text-sm text-gray-500 mb-1">
+            Adjust how much you save each month toward a down payment and see how it stacks up against rising home prices.
+          </p>
+          <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+            ⚠ If you’re only keeping pace with appreciation, your savings are a complete wash — you’re not getting closer to buying, you’re just running in place. The home gets more expensive by the exact amount you saved.
+          </p>
+          <div className="mb-4">
+            <SliderRow label="Monthly Savings Toward Down Payment" value={inputs.monthlySavingsAmount} min={0} max={5000} step={100}
+              onChange={v => setInput('monthlySavingsAmount', v)} prefix="$" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <StatCard label="You Save / Month" value={formatCurrency(inputs.monthlySavingsAmount)} color="blue" />
+            <StatCard label="Home Gains / Month" value={formatCurrency(monthlyAppreciation)} color={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'green' : 'red'}
+              sub={`${inputs.appreciationRate}% / yr appreciation`} />
+            <StatCard
+              label={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'Getting Closer' : 'Falling Behind'}
+              value={formatCurrency(Math.abs(inputs.monthlySavingsAmount - monthlyAppreciation)) + '/mo'}
+              color={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'green' : 'red'}
+              sub={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'ahead of appreciation' : 'behind appreciation'}
+            />
+          </div>
+          {inputs.monthlySavingsAmount === 0 ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+              Set a monthly savings amount above to see how it compares to home price growth.
+            </div>
+          ) : inputs.monthlySavingsAmount < monthlyAppreciation ? (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
+              <strong>Your savings are being erased.</strong> You’re saving {formatCurrency(inputs.monthlySavingsAmount)}/mo, but the home is getting{' '}
+              <strong>{formatCurrency(monthlyAppreciation)}/mo more expensive</strong>. You’re net {formatCurrency(monthlyAppreciation - inputs.monthlySavingsAmount)}/mo further from buying — not closer.
+              To just break even (not get ahead), you need to save at least <strong>{formatCurrency(monthlyAppreciation)}/mo</strong>.
+            </div>
+          ) : inputs.monthlySavingsAmount === monthlyAppreciation ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+              <strong>Dead even — this is a wash.</strong> You’re saving exactly as much as the home is gaining in value.
+              Your down payment grows, but so does the price tag by the same amount. You’re not getting any closer to ownership.
+            </div>
+          ) : (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
+              <strong>You’re actually making progress.</strong> You’re saving {formatCurrency(inputs.monthlySavingsAmount - monthlyAppreciation)}/mo <em>more</em> than the home is appreciating.
+              That’s real progress toward closing the gap — keep it up.
+            </div>
+          )}
+        </div>
+
+        {/* ── SECTION 5: Lease Break Insight ─────────────────────────────── */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -383,30 +429,6 @@ export default function Home() {
               </p>
             </div>
           </div>
-        </div>
-
-        {/* ── SECTION 5: Savings Race ─────────────────────────────────────── */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold text-gray-900 text-base mb-1">Can You Save Faster Than Prices Rise?</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            You save <strong className="text-gray-800">{formatCurrency(inputs.monthlySavingsAmount)}/mo</strong> toward your down payment.
-            The home appreciates <strong className="text-gray-800">{formatCurrency(monthlyAppreciation)}/mo</strong>.
-          </p>
-          <div className="mb-4">
-            <SliderRow label="Monthly Savings Toward Down Payment" value={inputs.monthlySavingsAmount} min={0} max={5000} step={100}
-              onChange={v => setInput('monthlySavingsAmount', v)} prefix="$" />
-          </div>
-          {inputs.monthlySavingsAmount < monthlyAppreciation ? (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
-              <strong>You're falling behind.</strong> For every dollar you save, the home gets{' '}
-              <strong>{(monthlyAppreciation / Math.max(inputs.monthlySavingsAmount, 1)).toFixed(1)}× more expensive</strong>.
-              You need to save at least <strong>{formatCurrency(monthlyAppreciation)}/mo</strong> just to break even.
-            </div>
-          ) : (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
-              <strong>You're gaining ground!</strong> You're saving {formatCurrency(inputs.monthlySavingsAmount - monthlyAppreciation)}/mo faster than prices rise.
-            </div>
-          )}
         </div>
 
         {/* ── DEEP DIVE ACCORDIONS ────────────────────────────────────────── */}
