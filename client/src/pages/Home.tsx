@@ -405,26 +405,25 @@ export default function Home() {
               <TrendingUp size={15} className="text-blue-700" />
             </div>
             <div className="flex-1">
-              <h2 className="font-bold text-gray-900 text-base mb-1">Should You Break Your Lease?</h2>
+              <h2 className="font-bold text-gray-900 text-base mb-1">Lease Break Cost vs. Home Price Change</h2>
               <p className="text-sm text-gray-500 mb-4">
-                Breaking your lease costs <strong className="text-gray-800">{formatCurrency(leaseBreakCost)}</strong> ({inputs.leaseBreakMonths} months rent).
-                Denver homes appreciate ~<strong className="text-gray-800">{formatCurrency(monthlyAppreciation)}/month</strong>.
+                This compares the estimated cost of breaking a lease early against the projected change in home price over the same period, based on the appreciation rate entered above.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <StatCard label="Lease Break Fee" value={formatCurrency(leaseBreakCost)} color="red" />
-                <StatCard label="Home Gain in 12 Months" value={formatCurrency(priceIncreaseYear)} color="green"
-                  sub={`${inputs.appreciationRate}% appreciation`} />
+                <StatCard label="Estimated Lease Break Fee" value={formatCurrency(leaseBreakCost)} color="blue" sub={`${inputs.leaseBreakMonths} months rent`} />
+                <StatCard label="Projected Home Price Increase (12 mo)" value={formatCurrency(priceIncreaseYear)} color="blue"
+                  sub={`Based on ${inputs.appreciationRate}% annual appreciation`} />
                 <StatCard
-                  label="Break Even In"
+                  label="Months for Appreciation to Offset Fee"
                   value={`${monthsToRecoup.toFixed(1)} months`}
-                  color={monthsToRecoup <= 6 ? 'green' : 'blue'}
-                  sub="Appreciation covers the fee"
+                  color="blue"
+                  sub="At the current appreciation rate"
                 />
               </div>
-              <p className={`mt-4 text-sm font-semibold rounded-lg px-4 py-2.5 ${leaseBreakCost < priceIncreaseYear ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
+              <p className="mt-4 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
                 {leaseBreakCost < priceIncreaseYear
-                  ? `✓ Breaking your lease is likely worth it — the home you want gets ${formatCurrency(priceIncreaseYear - leaseBreakCost)} more expensive in one year than your break fee.`
-                  : `⚠ In this scenario, the appreciation (${formatCurrency(priceIncreaseYear)}) is less than your break fee (${formatCurrency(leaseBreakCost)}). Consider negotiating.`}
+                  ? `At these inputs, the projected 12-month home price increase (${formatCurrency(priceIncreaseYear)}) exceeds the estimated lease break fee (${formatCurrency(leaseBreakCost)}) by ${formatCurrency(priceIncreaseYear - leaseBreakCost)}. Individual lease terms, market conditions, and personal circumstances will vary.`
+                  : `At these inputs, the estimated lease break fee (${formatCurrency(leaseBreakCost)}) exceeds the projected 12-month home price increase (${formatCurrency(priceIncreaseYear)}) by ${formatCurrency(leaseBreakCost - priceIncreaseYear)}. Individual lease terms, market conditions, and personal circumstances will vary.`}
               </p>
             </div>
           </div>
@@ -658,10 +657,24 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="text-center py-6 text-xs text-gray-400 border-t border-gray-200">
-          <p>For educational purposes only. Not financial advice. Consult a licensed mortgage professional and financial advisor before making decisions.</p>
-          <p className="mt-1">Denver Metro defaults based on Freddie Mac, Redfin, and Colorado CAR data as of early 2026.</p>
+        {/* Footer Disclaimer */}
+        <footer className="border-t border-gray-200 pt-6 pb-8 text-xs text-gray-400 space-y-3">
+          <p className="font-semibold text-gray-500 text-sm">Important Disclosures</p>
+          <p>
+            This calculator is provided for <strong>educational and illustrative purposes only</strong>. All figures are estimates based on the inputs you provide and general market assumptions. Results do not constitute financial, legal, tax, or real estate advice, and should not be relied upon as the basis for any financial decision.
+          </p>
+          <p>
+            Home values, interest rates, rental prices, and market conditions change frequently and vary significantly by neighborhood, property type, and individual circumstances. The appreciation rate, property tax rate, HOA fees, insurance costs, and other assumptions used here are generalizations and may not reflect your specific situation.
+          </p>
+          <p>
+            <strong>Before making any decision to rent, purchase, or break a lease</strong>, you are strongly encouraged to consult with a licensed real estate professional, a certified financial planner (CFP), a licensed mortgage loan originator (MLO), a qualified tax advisor, and/or a licensed attorney as appropriate to your situation.
+          </p>
+          <p>
+            Lease break fees, penalties, and terms vary by contract. Always review your lease agreement and consult with a legal professional before taking action.
+          </p>
+          <p className="text-gray-300">
+            Default values are based on Denver Metro area data from Freddie Mac, Redfin, and Colorado Association of Realtors as of early 2026. Interest rate is fetched from the FRED (Federal Reserve Economic Data) database and may not reflect current market offerings.
+          </p>
         </footer>
 
       </main>
