@@ -140,15 +140,17 @@ const DEFAULT_INPUTS: CalculatorInputs = {
   homeInsuranceRate: 0.50,
   maintenanceRate: 1.0,
   closingCostPct: 2.5,
-  appreciationRate: 3.0,
+  appreciationRate: 3.5,
   monthlyRent: 2200,
   rentInflationRate: 3.0,
   renterInsurance: 20,
   extraMonthlyPayment: 0,
   leaseBreakMonths: 2,
-  monthlySavingsAmount: 500,
+  monthlySavingsAmount: 1500,
   investmentReturnRate: 7.0,
 };
+
+export { DEFAULT_INPUTS };
 
 function buildAmortization(
   loanAmount: number,
@@ -359,6 +361,7 @@ interface CalculatorContextType {
   inputs: CalculatorInputs;
   derived: CalculatorDerived;
   setInput: <K extends keyof CalculatorInputs>(key: K, value: CalculatorInputs[K]) => void;
+  resetInputs: () => void;
   rateLoading: boolean;
   rateFetched: boolean;
 }
@@ -372,6 +375,10 @@ export function CalculatorProvider({ children }: { children: React.ReactNode }) 
 
   const setInput = useCallback(<K extends keyof CalculatorInputs>(key: K, value: CalculatorInputs[K]) => {
     setInputs(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const resetInputs = useCallback(() => {
+    setInputs(DEFAULT_INPUTS);
   }, []);
 
   // Fetch latest mortgage rate from FRED API (no key required for observation endpoint)
@@ -405,7 +412,7 @@ export function CalculatorProvider({ children }: { children: React.ReactNode }) 
   const derived = useMemo(() => deriveCalculations(inputs), [inputs]);
 
   return (
-    <CalculatorContext.Provider value={{ inputs, derived, setInput, rateLoading, rateFetched }}>
+    <CalculatorContext.Provider value={{ inputs, derived, setInput, resetInputs, rateLoading, rateFetched }}>
       {children}
     </CalculatorContext.Provider>
   );

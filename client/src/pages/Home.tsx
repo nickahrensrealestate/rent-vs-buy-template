@@ -107,7 +107,20 @@ function ChartTooltip({ payload, label, labelPrefix = '' }: any) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Home() {
-  const { inputs, derived, setInput, rateLoading, rateFetched } = useCalculator();
+  const { inputs, derived, setInput, resetInputs, rateLoading, rateFetched } = useCalculator();
+
+  // Appreciation toggle options
+  const appreciationOptions = [2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5];
+
+  // Stepped savings slider: 0–5000 in $100 steps, 5000–15000 in $500 steps
+  // We map a 0–120 index to actual dollar values
+  const savingsSteps = [
+    ...Array.from({ length: 51 }, (_, i) => i * 100),       // 0–5000 in $100 steps (51 values)
+    ...Array.from({ length: 20 }, (_, i) => 5500 + i * 500), // 5500–15000 in $500 steps (20 values)
+  ];
+  const savingsIndex = savingsSteps.reduce((best, val, idx) =>
+    Math.abs(val - inputs.monthlySavingsAmount) < Math.abs(savingsSteps[best] - inputs.monthlySavingsAmount) ? idx : best, 0
+  );
 
   const monthlyDiff = derived.totalMonthlyOwnership - derived.totalMonthlyRent;
   const rentingCheaper = monthlyDiff > 0;
@@ -179,7 +192,15 @@ export default function Home() {
 
         {/* ── SECTION 1: Sliders ─────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h2 className="font-bold text-gray-900 text-base mb-5">Your Numbers</h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-bold text-gray-900 text-base">Your Numbers</h2>
+            <button
+              onClick={resetInputs}
+              className="text-xs text-gray-400 hover:text-gray-600 border border-gray-200 hover:border-gray-300 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              Reset to Defaults
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
             {/* Left: Purchase */}
@@ -198,6 +219,30 @@ export default function Home() {
               <SliderRow label="Property Tax" value={inputs.propertyTaxRate} min={0.1} max={3} step={0.05}
                 onChange={v => setInput('propertyTaxRate', v)} suffix="% / yr"
                 hint="Colorado effective rate: ~0.50%" />
+
+              {/* Appreciation toggle */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Home Appreciation</label>
+                  <span className="font-mono text-sm font-bold text-gray-900">{inputs.appreciationRate}% / yr</span>
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {appreciationOptions.map(opt => (
+                    <button
+                      key={opt}
+                      onClick={() => setInput('appreciationRate', opt)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                        inputs.appreciationRate === opt
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                      }`}
+                    >
+                      {opt}%
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400">Denver Metro avg: ~4.25%/yr historically. Default set to 3.5% (conservative estimate).</p>
+              </div>
               <div className="border-t border-gray-100 pt-4 mt-2 space-y-5">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Buying — Advanced</p>
                 <SliderRow label="Loan Term" value={inputs.loanTermYears} min={10} max={30} step={5}
@@ -361,9 +406,25 @@ export default function Home() {
           <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-4">
             Note: If your monthly savings equal the monthly appreciation, the net effect on your purchasing position is neutral — your down payment grows, but so does the price of the home by roughly the same amount.
           </p>
-          <div className="mb-4">
-            <SliderRow label="Monthly Savings Toward Down Payment" value={inputs.monthlySavingsAmount} min={0} max={5000} step={100}
-              onChange={v => setInput('monthlySavingsAmount', v)} prefix="$" />
+          <div className="mb-4 flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Monthly Savings Toward Down Payment</label>
+              <span className="font-mono text-sm font-bold text-gray-900">{formatCurrency(inputs.monthlySavingsAmount)}</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={savingsSteps.length - 1}
+              step={1}
+              value={savingsIndex}
+              onChange={e => setInput('monthlySavingsAmount', savingsSteps[parseInt(e.target.value)])}
+              className="w-full h-1.5 rounded-full accent-blue-600 cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-gray-400">
+              <span>$0</span>
+              <span>$5,000</span>
+              <span>$15,000</span>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <StatCard label="You Save / Month" value={formatCurrency(inputs.monthlySavingsAmount)} color="blue" />
