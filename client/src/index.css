@@ -258,6 +258,47 @@
     background: oklch(0.97 0.003 250);
   }
 
+  /* font-mono shorthand for number display */
+  .font-mono {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Range input styling */
+  input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    background: oklch(0.91 0.005 250);
+    height: 6px;
+    border-radius: 9999px;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2563EB;
+    margin-top: -5px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(37,99,235,0.3);
+  }
+  input[type='range']::-moz-range-track {
+    background: oklch(0.91 0.005 250);
+    height: 6px;
+    border-radius: 9999px;
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2563EB;
+    border: none;
+    cursor: pointer;
+  }
+
   /* Recharts custom tooltip */
   .custom-tooltip {
     background: white;
