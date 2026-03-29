@@ -358,8 +358,8 @@ export default function Home() {
           <p className="text-sm text-gray-500 mb-1">
             Adjust how much you save each month toward a down payment and see how it stacks up against rising home prices.
           </p>
-          <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-            ⚠ If you’re only keeping pace with appreciation, your savings are a complete wash — you’re not getting closer to buying, you’re just running in place. The home gets more expensive by the exact amount you saved.
+          <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-4">
+            Note: If your monthly savings equal the monthly appreciation, the net effect on your purchasing position is neutral — your down payment grows, but so does the price of the home by roughly the same amount.
           </p>
           <div className="mb-4">
             <SliderRow label="Monthly Savings Toward Down Payment" value={inputs.monthlySavingsAmount} min={0} max={5000} step={100}
@@ -381,20 +381,19 @@ export default function Home() {
               Set a monthly savings amount above to see how it compares to home price growth.
             </div>
           ) : inputs.monthlySavingsAmount < monthlyAppreciation ? (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
-              <strong>Your savings are being erased.</strong> You’re saving {formatCurrency(inputs.monthlySavingsAmount)}/mo, but the home is getting{' '}
-              <strong>{formatCurrency(monthlyAppreciation)}/mo more expensive</strong>. You’re net {formatCurrency(monthlyAppreciation - inputs.monthlySavingsAmount)}/mo further from buying — not closer.
-              To just break even (not get ahead), you need to save at least <strong>{formatCurrency(monthlyAppreciation)}/mo</strong>.
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+              At this savings rate, your down payment grows by <strong>{formatCurrency(inputs.monthlySavingsAmount)}/mo</strong>, while the home price increases by approximately <strong>{formatCurrency(monthlyAppreciation)}/mo</strong>.
+              The net change in your purchasing position is <strong>−{formatCurrency(monthlyAppreciation - inputs.monthlySavingsAmount)}/mo</strong>.
+              To keep pace with appreciation, savings of at least <strong>{formatCurrency(monthlyAppreciation)}/mo</strong> would be needed.
             </div>
           ) : inputs.monthlySavingsAmount === monthlyAppreciation ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-              <strong>Dead even — this is a wash.</strong> You’re saving exactly as much as the home is gaining in value.
-              Your down payment grows, but so does the price tag by the same amount. You’re not getting any closer to ownership.
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+              Your savings rate matches the monthly appreciation. Your down payment balance increases, but so does the home price by roughly the same amount — your net purchasing position stays approximately the same.
             </div>
           ) : (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
-              <strong>You’re actually making progress.</strong> You’re saving {formatCurrency(inputs.monthlySavingsAmount - monthlyAppreciation)}/mo <em>more</em> than the home is appreciating.
-              That’s real progress toward closing the gap — keep it up.
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+              Your savings exceed the monthly appreciation by <strong>{formatCurrency(inputs.monthlySavingsAmount - monthlyAppreciation)}/mo</strong>.
+              At this rate, your purchasing position is improving over time.
             </div>
           )}
         </div>
