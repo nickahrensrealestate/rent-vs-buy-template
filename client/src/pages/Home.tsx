@@ -478,35 +478,29 @@ export default function Home() {
             </Accordion>
 
             {/* Net Worth */}
-            <Accordion title="Net Worth Comparison" subtitle="Owner vs. renter wealth at 1, 5, 10, and 30 years — assuming renter invests the down payment">
+            <Accordion title="Net Worth Comparison" subtitle="Owner housing equity vs. renter at 1, 5, 10, and 30 years">
               <div className="space-y-4">
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
                   <span className="inline-block mr-1">ℹ</span>
-                  Owner net worth = home equity (appreciation + loan paydown + down payment) minus cash to close. Renter net worth = down payment invested at {inputs.investmentReturnRate}% annually, plus monthly savings from cheaper rent.
-                  Rent rises {inputs.rentInflationRate}%/yr. Mortgage stays fixed. Home appreciates {inputs.appreciationRate}%/yr.
-                  <strong className="block mt-1 text-orange-700">★ Renter's housing net worth = $0 at every milestone. Any renter "net worth" shown comes only from investing — not from housing.</strong>
-                </div>
-                <div className="mb-1">
-                  <SliderRow label="Investment Return Rate (Renter)" value={inputs.investmentReturnRate} min={1} max={15} step={0.5}
-                    onChange={v => setInput('investmentReturnRate', v)} suffix="% / yr"
-                    hint="S&P 500 historical avg: ~7–10% real" />
+                  <strong>Owner net worth</strong> = home equity (down payment + principal paid down + appreciation) minus closing costs.
+                  Home appreciates {inputs.appreciationRate}%/yr. Mortgage payment stays fixed.
+                  <strong className="block mt-1 text-red-700">★ Renter housing net worth = $0 at every milestone. Renting builds no equity — ever.</strong>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {derived.netWorthMilestones.map(m => (
-                    <div key={m.years} className="bg-white border border-gray-200 rounded-xl p-3 text-center">
-                      <p className="text-xs text-gray-400 mb-2">{m.years === 30 ? '30 Years' : `${m.years} Year${m.years > 1 ? 's' : ''}`}</p>
-                      <div className="space-y-1">
+                    <div key={m.years} className="rounded-xl border-2 border-blue-200 bg-blue-50 p-3 text-center">
+                      <p className="text-xs text-gray-500 mb-2 font-semibold">{m.years === 30 ? '30 Years' : `${m.years} Year${m.years > 1 ? 's' : ''}`}</p>
+                      <div className="space-y-2">
                         <div>
-                          <p className="text-xs text-blue-600 font-medium">Owner</p>
-                          <p className="font-mono text-sm font-bold text-blue-800">{formatCurrencyCompact(m.ownerNetWorth)}</p>
+                          <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Owner</p>
+                          <p className="font-mono text-lg font-black text-blue-800">{formatCurrencyCompact(m.ownerNetWorth)}</p>
+                          <p className="text-xs text-blue-500">housing equity</p>
                         </div>
-                        <div>
-                          <p className="text-xs text-orange-500 font-medium">Renter</p>
-                          <p className="font-mono text-sm font-bold text-orange-700">{formatCurrencyCompact(m.renterNetWorth)}</p>
+                        <div className="border-t border-blue-200 pt-2">
+                          <p className="text-xs text-red-500 font-semibold uppercase tracking-wide">Renter</p>
+                          <p className="font-mono text-lg font-black text-red-700">$0</p>
+                          <p className="text-xs text-red-400">no equity built</p>
                         </div>
-                        <p className={`text-xs font-semibold ${m.ownerNetWorth > m.renterNetWorth ? 'text-green-600' : 'text-amber-600'}`}>
-                          {m.ownerNetWorth > m.renterNetWorth ? '▲ Owner ahead' : '▲ Renter ahead'}
-                        </p>
                       </div>
                     </div>
                   ))}
@@ -519,9 +513,10 @@ export default function Home() {
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <ReferenceLine y={0} stroke="#e5e7eb" />
                     <Bar dataKey="Owner" fill="#1D4ED8" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Renter" fill="#f97316" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Renter" fill="#ef4444" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
+                <p className="text-xs text-gray-400 text-center">Renter bar is always $0. Owner equity grows through loan paydown and home appreciation.</p>
               </div>
             </Accordion>
 

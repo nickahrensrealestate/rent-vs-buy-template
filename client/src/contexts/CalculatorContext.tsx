@@ -274,27 +274,14 @@ function deriveCalculations(inputs: CalculatorInputs): CalculatorDerived {
     const m = years * 12;
     const row = amortizationSchedule[Math.min(m - 1, amortizationSchedule.length - 1)];
 
-    // Owner net worth = equity in home (home value - loan balance)
+    // Owner net worth = home equity (appreciation + principal paid + down payment) minus initial cash outlay
     const ownerHomeValue = row ? row.homeValue : homePrice * Math.pow(1 + appreciationRate / 100, years);
     const ownerLoanBalance = row ? row.balance : 0;
-    const ownerEquity = ownerHomeValue - ownerLoanBalance;
-    // Owner also has invested any monthly savings (rent - ownership cost, if positive)
-    const monthlyCostDiff = totalMonthlyRent - totalMonthlyOwnership;
-    // Compound monthly savings if renting is more expensive (owner saves the diff)
-    const ownerMonthlySavings = Math.max(0, monthlyCostDiff);
-    const ownerSavingsAccumulated = ownerMonthlySavings > 0
-      ? ownerMonthlySavings * ((Math.pow(1 + investmentReturnRate / 100 / 12, m) - 1) / (investmentReturnRate / 100 / 12))
-      : 0;
-    const ownerNetWorth = ownerEquity + ownerSavingsAccumulated - totalCashNeeded; // subtract initial cash outlay
+    const ownerEquity = downPaymentAmount + (loanAmount - ownerLoanBalance) + (ownerHomeValue - homePrice);
+    const ownerNetWorth = ownerEquity - totalCashNeeded; // net of initial cash invested
 
-    // Renter net worth = invested down payment + monthly savings invested
-    const investedDownPayment = totalCashNeeded * Math.pow(1 + investmentReturnRate / 100 / 12, m);
-    // Renter saves the difference between ownership and rent each month
-    const renterMonthlySavings = Math.max(0, totalMonthlyOwnership - totalMonthlyRent);
-    const renterSavingsAccumulated = renterMonthlySavings > 0
-      ? renterMonthlySavings * ((Math.pow(1 + investmentReturnRate / 100 / 12, m) - 1) / (investmentReturnRate / 100 / 12))
-      : 0;
-    const renterNetWorth = investedDownPayment + renterSavingsAccumulated - totalCashNeeded;
+    // Renter net worth = $0 — renting builds no equity and no housing-based wealth
+    const renterNetWorth = 0;
 
     // Cumulative rent paid (with inflation)
     let cumulativeRent = 0;
@@ -315,7 +302,7 @@ function deriveCalculations(inputs: CalculatorInputs): CalculatorDerived {
       ownerHomeValue,
       ownerLoanBalance,
       ownerEquity,
-      renterSavings: investedDownPayment + renterSavingsAccumulated,
+      renterSavings: 0,
       cumulativeRentPaid: cumulativeRent,
       cumulativeMortgagePaid,
     };
