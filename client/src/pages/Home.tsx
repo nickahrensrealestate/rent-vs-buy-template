@@ -1,13 +1,15 @@
 /**
- * Home Page — Denver Rent vs. Buy Calculator (Simplified)
- * Design: Clean, scannable, side-by-side comparison.
- * Sliders at top → Big numbers in the middle → Deep-dive accordions at bottom.
+ * Home Page — Denver Rent vs. Buy Calculator (lead-max embed copy)
+ * Core sliders → equity / net-worth results → CTA → monthly gap → advanced expanders.
  */
 
-import { useState } from 'react';
-import { useCalculator } from '@/contexts/CalculatorContext';
-import { formatCurrency, formatCurrencyCompact, formatPercent } from '@/lib/format';
-import { ChevronDown, ChevronUp, House, TrendingUp, Wifi } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { useCalculator, type CalculatorInputs } from '@/contexts/CalculatorContext';
+import { useParentBridge } from '@/hooks/useParentBridge';
+import { formatCurrency, formatCurrencyCompact } from '@/lib/format';
+import { ILLUSTRATIVE_SP500_ANNUAL_RETURN_PCT } from '@/lib/compound';
+import HeroPromise, { LeadCtaBlock, StickyCtaBar } from '@/components/lead/LeadCtas';
+import { ChevronDown, ChevronUp, House, Wifi } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, Legend, ReferenceLine,
@@ -48,8 +50,13 @@ function SliderRow({
 }
 
 // ─── Accordion section ────────────────────────────────────────────────────────
-function Accordion({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+function Accordion({ title, subtitle, children, defaultOpen = false }: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
       <button
@@ -108,24 +115,31 @@ function ChartTooltip({ payload, label, labelPrefix = '' }: any) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Home() {
   const { inputs, derived, setInput, resetInputs, rateLoading, rateFetched } = useCalculator();
+  const { focusParentForm } = useParentBridge();
+  const [hasTouchedSlider, setHasTouchedSlider] = useState(false);
 
-  // Appreciation toggle options
+  const update = useCallback(<K extends keyof CalculatorInputs>(key: K, value: CalculatorInputs[K]) => {
+    setHasTouchedSlider(true);
+    setInput(key, value);
+  }, [setInput]);
+
+  const onBreakdown = () => focusParentForm('breakdown');
+  const onWatching = () => focusParentForm('watching');
+
   const appreciationOptions = [2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5];
 
-  // Stepped savings slider: 0–5000 in $100 steps, 5000–15000 in $500 steps
-  // We map a 0–120 index to actual dollar values
   const savingsSteps = [
-    ...Array.from({ length: 51 }, (_, i) => i * 100),       // 0–5000 in $100 steps (51 values)
-    ...Array.from({ length: 20 }, (_, i) => 5500 + i * 500), // 5500–15000 in $500 steps (20 values)
+    ...Array.from({ length: 51 }, (_, i) => i * 100),
+    ...Array.from({ length: 20 }, (_, i) => 5500 + i * 500),
   ];
   const savingsIndex = savingsSteps.reduce((best, val, idx) =>
     Math.abs(val - inputs.monthlySavingsAmount) < Math.abs(savingsSteps[best] - inputs.monthlySavingsAmount) ? idx : best, 0
   );
 
   const monthlyDiff = derived.totalMonthlyOwnership - derived.totalMonthlyRent;
-  const rentingCheaper = monthlyDiff > 0;
+  const buyCostsMoreMonthly = monthlyDiff > 0;
+  const rentCostsMoreMonthly = monthlyDiff < 0;
 
-  // Amortization chart data (annual)
   const amortoData = derived.amortizationSchedule
     .filter(r => r.month % 12 === 0)
     .map(r => ({
@@ -135,21 +149,12 @@ export default function Home() {
       'Your Equity': Math.round(r.equity),
     }));
 
-  // Equity milestones bar chart
-  const equityData = derived.equityMilestones.map(m => ({
-    name: `${m.years}yr`,
-    Equity: Math.round(m.equity),
-    'Loan Balance': Math.round(m.loanBalance),
-  }));
-
-  // Net worth comparison
   const nwData = derived.netWorthMilestones.map(m => ({
     name: `${m.years}yr`,
     'Owner': Math.round(m.ownerNetWorth),
-    'Renter': Math.round(m.renterNetWorth),
+    'Renter invested gap': Math.round(m.renterNetWorth),
   }));
 
-  // Savings race data
   const savingsData = Array.from({ length: 37 }, (_, i) => {
     const month = i * 2;
     const savings = inputs.monthlySavingsAmount * month;
@@ -163,8 +168,7 @@ export default function Home() {
   const monthsToRecoup = leaseBreakCost / (priceIncreaseYear / 12);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <div className={`min-h-screen bg-gray-50 ${hasTouchedSlider ? 'pb-20' : ''}`}>
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -188,12 +192,17 @@ export default function Home() {
         </div>
       </header>
 
+      <HeroPromise />
+
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
 
-        {/* ── SECTION 1: Sliders ─────────────────────────────────────────── */}
+        {/* ── CORE SLIDERS ────────────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-bold text-gray-900 text-base">Your Numbers</h2>
+            <div>
+              <h2 className="font-bold text-gray-900 text-base">Your numbers</h2>
+              <p className="text-xs text-gray-500 mt-0.5">A few taps — then a personal breakdown below.</p>
+            </div>
             <button
               onClick={resetInputs}
               className="text-xs text-gray-400 hover:text-gray-600 border border-gray-200 hover:border-gray-300 rounded-lg px-3 py-1.5 transition-colors"
@@ -203,24 +212,22 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
-            {/* Left: Purchase */}
             <div className="space-y-5">
               <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Buying</p>
               <SliderRow label="Home Price" value={inputs.homePrice} min={200000} max={1500000} step={5000}
-                onChange={v => setInput('homePrice', v)} format={v => formatCurrency(v)}
+                onChange={v => update('homePrice', v)} format={v => formatCurrency(v)}
                 hint="Denver Metro median: ~$565K" />
               <SliderRow label="Down Payment" value={inputs.downPaymentPct} min={3} max={30} step={0.5}
-                onChange={v => setInput('downPaymentPct', v)}
+                onChange={v => update('downPaymentPct', v)}
                 format={v => `${v}% (${formatCurrency(inputs.homePrice * v / 100)})`} />
               <SliderRow label="Interest Rate" value={inputs.interestRate} min={3} max={12} step={0.05}
-                onChange={v => setInput('interestRate', v)} suffix="%" />
+                onChange={v => update('interestRate', v)} suffix="%" />
               <SliderRow label="HOA Monthly" value={inputs.hoaMonthly} min={0} max={800} step={25}
-                onChange={v => setInput('hoaMonthly', v)} prefix="$" hint="Denver avg: ~$150/mo" />
+                onChange={v => update('hoaMonthly', v)} prefix="$" hint="Denver avg: ~$150/mo" />
               <SliderRow label="Property Tax" value={inputs.propertyTaxRate} min={0.1} max={3} step={0.05}
-                onChange={v => setInput('propertyTaxRate', v)} suffix="% / yr"
+                onChange={v => update('propertyTaxRate', v)} suffix="% / yr"
                 hint="Denver Metro avg: ~1.0% effective rate" />
 
-              {/* Appreciation toggle */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Home Appreciation</label>
@@ -230,7 +237,7 @@ export default function Home() {
                   {appreciationOptions.map(opt => (
                     <button
                       key={opt}
-                      onClick={() => setInput('appreciationRate', opt)}
+                      onClick={() => update('appreciationRate', opt)}
                       className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors ${
                         inputs.appreciationRate === opt
                           ? 'bg-blue-600 text-white border-blue-600'
@@ -243,39 +250,104 @@ export default function Home() {
                 </div>
                 <p className="text-xs text-gray-400">Denver Metro avg: ~4.25%/yr historically. Default set to 3.5% (conservative estimate).</p>
               </div>
-              <div className="border-t border-gray-100 pt-4 mt-2 space-y-5">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Buying — Advanced</p>
-                <SliderRow label="Loan Term" value={inputs.loanTermYears} min={10} max={30} step={5}
-                  onChange={v => setInput('loanTermYears', v)} suffix=" years" />
-                <SliderRow label="Extra Monthly Payment" value={inputs.extraMonthlyPayment} min={0} max={2000} step={50}
-                  onChange={v => setInput('extraMonthlyPayment', v)} prefix="$"
-                  hint="Pay extra to reduce interest & pay off early" />
-              </div>
             </div>
 
-            {/* Right: Renting */}
             <div className="space-y-5">
               <p className="text-xs font-semibold text-orange-500 uppercase tracking-wider">Renting</p>
               <SliderRow label="Monthly Rent" value={inputs.monthlyRent} min={500} max={6000} step={50}
-                onChange={v => setInput('monthlyRent', v)} prefix="$" hint="Denver Metro median: ~$2,200/mo" />
-              <SliderRow label="Rent Inflation" value={inputs.rentInflationRate} min={0} max={8} step={0.25}
-                onChange={v => setInput('rentInflationRate', v)} suffix="% / yr"
-                hint="Historical Denver avg: ~3%/yr" />
-
-              <div className="border-t border-gray-100 pt-4 mt-2 space-y-5">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Renting — Advanced</p>
-                <SliderRow label="Lease Break Fee" value={inputs.leaseBreakMonths} min={0} max={6} step={1}
-                  onChange={v => setInput('leaseBreakMonths', v)} suffix=" months rent" />
+                onChange={v => update('monthlyRent', v)} prefix="$" hint="Denver Metro median: ~$2,200/mo" />
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+                After you set these, we lead with <strong>owner equity</strong> — what you&apos;d own over time —
+                then the monthly cash difference (which includes tax, HOA, maintenance, and insurance on the buy side).
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── SECTION 2: Side-by-side comparison ─────────────────────────── */}
+        {/* ── HERO RESULT: OWNER EQUITY ───────────────────────────────────── */}
         <div>
-          <h2 className="font-bold text-gray-900 text-base mb-3">Monthly Cost Comparison</h2>
+          <h2 className="font-bold text-gray-900 text-lg mb-1">If you buy: estimated owner equity</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            This is the headline — wealth in the home at 1, 3, 5, and 10 years (down payment + loan paydown + appreciation).
+            Figures are estimates for illustration, not a prediction.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {derived.equityMilestones.map(m => (
+              <div key={m.years} className="bg-white border border-green-200 rounded-xl p-4 shadow-sm">
+                <p className="text-xs text-gray-400 mb-2 font-semibold">{m.years === 1 ? '1 Year' : `${m.years} Years`}</p>
+                <p className="font-mono text-xl font-black text-green-700 mb-3">{formatCurrencyCompact(m.equity)}</p>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-blue-500 flex-shrink-0" />
+                    <span className="text-gray-500 flex-1">Down payment</span>
+                    <span className="font-mono font-semibold text-blue-700">{formatCurrencyCompact(m.downPaymentAmount)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-green-500 flex-shrink-0" />
+                    <span className="text-gray-500 flex-1">Loan paid down</span>
+                    <span className="font-mono font-semibold text-green-700">{formatCurrencyCompact(m.principalPaid)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400 flex-shrink-0" />
+                    <span className="text-gray-500 flex-1">Appreciation</span>
+                    <span className="font-mono font-semibold text-emerald-700">{formatCurrencyCompact(m.appreciationGain)}</span>
+                  </div>
+                </div>
+                <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${Math.min(m.equityPct, 100)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          {inputs.extraMonthlyPayment > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
+              <strong>Extra payment impact:</strong> Paying {formatCurrency(inputs.extraMonthlyPayment)}/mo extra saves{' '}
+              <strong>{formatCurrency(derived.interestSavings)}</strong> in interest and pays off the loan in{' '}
+              <strong>{derived.payoffDateWithExtra}</strong> instead of {derived.payoffDateStandard}.
+            </div>
+          )}
+        </div>
+
+        {/* ── RENTER INVEST-THE-GAP (replaces renter = $0) ─────────────────── */}
+        <div>
+          <h2 className="font-bold text-gray-900 text-base mb-1">If you rent: invested monthly gap (illustration)</h2>
+          <p className="text-sm text-gray-500 mb-3">
+            Housing equity from renting is still $0. As a comparison, this path invests the monthly payment
+            difference (<strong>buy − rent</strong>, only when buying costs more) into an S&amp;P 500-like
+            portfolio at <strong>{ILLUSTRATIVE_SP500_ANNUAL_RETURN_PCT}% annual</strong> return, compounded monthly.
+            Estimate only — not a forecast or investment advice.
+          </p>
+          {derived.monthlyInvestGap > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {derived.renterInvestedMilestones.map(m => (
+                <div key={m.years} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                  <p className="text-xs text-gray-400 mb-2 font-semibold">{m.years === 1 ? '1 Year' : `${m.years} Years`}</p>
+                  <p className="font-mono text-xl font-black text-gray-800">{formatCurrencyCompact(m.investedBalance)}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formatCurrency(m.monthlyContribution)}/mo invested
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+              In this scenario <strong>renting costs more monthly</strong>, so there is no extra cash left over
+              to invest. Illustrated invested gap: <strong>$0</strong>.
+            </div>
+          )}
+        </div>
+
+        {/* ── PRIMARY CTA (after core results) ────────────────────────────── */}
+        <LeadCtaBlock onBreakdown={onBreakdown} onWatching={onWatching} />
+
+        {/* ── MONTHLY GAP (second, not the hero takeaway) ─────────────────── */}
+        <div>
+          <h2 className="font-bold text-gray-900 text-base mb-1">Monthly cash comparison</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Second look — not the main takeaway. The buy total includes principal &amp; interest,
+            property tax, HOA, maintenance, and insurance, not just the mortgage.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Renting */}
             <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5">
               <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-3">Renting</p>
               <p className="font-mono text-3xl font-black text-orange-800 mb-4">
@@ -288,7 +360,7 @@ export default function Home() {
                   <span className="font-mono font-semibold">{formatCurrency(inputs.monthlyRent)}</span>
                 </div>
                 <div className="flex justify-between text-orange-600 opacity-70">
-                  <span>Renter's Insurance</span>
+                  <span>Renter&apos;s Insurance</span>
                   <span className="font-mono">{formatCurrency(inputs.renterInsurance)}</span>
                 </div>
               </div>
@@ -299,7 +371,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Buying */}
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
               <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">Buying</p>
               <p className="font-mono text-3xl font-black text-blue-800 mb-4">
@@ -327,14 +398,17 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Difference */}
-            <div className={`rounded-2xl p-5 border-2 ${rentingCheaper ? 'bg-orange-100 border-orange-300' : 'bg-green-50 border-green-300'}`}>
-              <p className="text-xs font-semibold uppercase tracking-wider mb-3 text-gray-600">Monthly Difference</p>
-              <p className={`font-mono text-3xl font-black mb-1 ${rentingCheaper ? 'text-orange-800' : 'text-green-800'}`}>
-                {rentingCheaper ? '+' : '-'}{formatCurrency(Math.abs(monthlyDiff))}
+            <div className="rounded-2xl p-5 border bg-white border-gray-200">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3 text-gray-600">Monthly gap</p>
+              <p className="font-mono text-3xl font-black mb-1 text-gray-900">
+                {formatCurrency(Math.abs(monthlyDiff))}
               </p>
-              <p className={`text-sm font-semibold mb-4 ${rentingCheaper ? 'text-orange-700' : 'text-green-700'}`}>
-                {rentingCheaper ? 'Renting costs less monthly' : 'Buying costs less monthly'}
+              <p className="text-sm font-medium mb-4 text-gray-700">
+                {buyCostsMoreMonthly
+                  ? 'Buying costs more each month (this gap is what the invest-the-difference illustration uses)'
+                  : rentCostsMoreMonthly
+                    ? 'Renting costs more monthly in this scenario'
+                    : 'Monthly costs are about even'}
               </p>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-gray-700">
@@ -354,148 +428,32 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── SECTION 3: Net Worth from Buying ────────────────────────────── */}
+        {/* ── ADVANCED EXPANDERS ──────────────────────────────────────────── */}
         <div>
-          <h2 className="font-bold text-gray-900 text-base mb-1">Your Net Worth if You Buy</h2>
-          <p className="text-sm text-gray-500 mb-4">Every mortgage payment builds real wealth. Your net worth grows through three engines: your down payment, loan paydown, and home appreciation. Renting builds <strong className="text-red-600">$0</strong> of this.</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            {derived.equityMilestones.map(m => (
-              <div key={m.years} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <p className="text-xs text-gray-400 mb-2 font-semibold">{m.years === 1 ? '1 Year' : `${m.years} Years`}</p>
-                <p className="font-mono text-xl font-black text-green-700 mb-3">{formatCurrencyCompact(m.equity)}</p>
-                {/* Breakdown stacked bar */}
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-blue-500 flex-shrink-0" />
-                    <span className="text-gray-500 flex-1">Down payment</span>
-                    <span className="font-mono font-semibold text-blue-700">{formatCurrencyCompact(m.downPaymentAmount)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-green-500 flex-shrink-0" />
-                    <span className="text-gray-500 flex-1">Loan paid down</span>
-                    <span className="font-mono font-semibold text-green-700">{formatCurrencyCompact(m.principalPaid)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400 flex-shrink-0" />
-                    <span className="text-gray-500 flex-1">Appreciation</span>
-                    <span className="font-mono font-semibold text-emerald-700">{formatCurrencyCompact(m.appreciationGain)}</span>
-                  </div>
-                </div>
-                {/* Visual equity bar */}
-                <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${Math.min(m.equityPct, 100)}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          {inputs.extraMonthlyPayment > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
-              <strong>Extra payment impact:</strong> Paying {formatCurrency(inputs.extraMonthlyPayment)}/mo extra saves{' '}
-              <strong>{formatCurrency(derived.interestSavings)}</strong> in interest and pays off the loan in{' '}
-              <strong>{derived.payoffDateWithExtra}</strong> instead of {derived.payoffDateStandard}.
-            </div>
-          )}
-        </div>
-
-        {/* ── SECTION 4: Savings Race ─────────────────────────────────────── */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold text-gray-900 text-base mb-1">Can You Save Faster Than Prices Rise?</h2>
-          <p className="text-sm text-gray-500 mb-1">
-            Adjust how much you save each month toward a down payment and see how it stacks up against rising home prices.
-          </p>
-          <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-4">
-            Note: If your monthly savings equal the monthly appreciation, the net effect on your purchasing position is neutral — your down payment grows, but so does the price of the home by roughly the same amount.
-          </p>
-          <div className="mb-4 flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Monthly Savings Toward Down Payment</label>
-              <span className="font-mono text-sm font-bold text-gray-900">{formatCurrency(inputs.monthlySavingsAmount)}</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={savingsSteps.length - 1}
-              step={1}
-              value={savingsIndex}
-              onChange={e => setInput('monthlySavingsAmount', savingsSteps[parseInt(e.target.value)])}
-              className="w-full h-1.5 rounded-full accent-blue-600 cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-400">
-              <span>$0</span>
-              <span>$5,000</span>
-              <span>$15,000</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <StatCard label="You Save / Month" value={formatCurrency(inputs.monthlySavingsAmount)} color="blue" />
-            <StatCard label="Home Gains / Month" value={formatCurrency(monthlyAppreciation)} color={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'green' : 'red'}
-              sub={`${inputs.appreciationRate}% / yr appreciation`} />
-            <StatCard
-              label={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'Getting Closer' : 'Falling Behind'}
-              value={formatCurrency(Math.abs(inputs.monthlySavingsAmount - monthlyAppreciation)) + '/mo'}
-              color={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'green' : 'red'}
-              sub={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'ahead of appreciation' : 'behind appreciation'}
-            />
-          </div>
-          {inputs.monthlySavingsAmount === 0 ? (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
-              Set a monthly savings amount above to see how it compares to home price growth.
-            </div>
-          ) : inputs.monthlySavingsAmount < monthlyAppreciation ? (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
-              At this savings rate, your down payment grows by <strong>{formatCurrency(inputs.monthlySavingsAmount)}/mo</strong>, while the home price increases by approximately <strong>{formatCurrency(monthlyAppreciation)}/mo</strong>.
-              The net change in your purchasing position is <strong>−{formatCurrency(monthlyAppreciation - inputs.monthlySavingsAmount)}/mo</strong>.
-              To keep pace with appreciation, savings of at least <strong>{formatCurrency(monthlyAppreciation)}/mo</strong> would be needed.
-            </div>
-          ) : inputs.monthlySavingsAmount === monthlyAppreciation ? (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
-              Your savings rate matches the monthly appreciation. Your down payment balance increases, but so does the home price by roughly the same amount — your net purchasing position stays approximately the same.
-            </div>
-          ) : (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
-              Your savings exceed the monthly appreciation by <strong>{formatCurrency(inputs.monthlySavingsAmount - monthlyAppreciation)}/mo</strong>.
-              At this rate, your purchasing position is improving over time.
-            </div>
-          )}
-        </div>
-
-        {/* ── SECTION 5: Lease Break Insight ─────────────────────────────── */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-              <TrendingUp size={15} className="text-blue-700" />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-bold text-gray-900 text-base mb-1">Lease Break Cost vs. Home Price Change</h2>
-              <p className="text-sm text-gray-500 mb-4">
-                This compares the estimated cost of breaking a lease early against the projected change in home price over the same period, based on the appreciation rate entered above.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <StatCard label="Estimated Lease Break Fee" value={formatCurrency(leaseBreakCost)} color="blue" sub={`${inputs.leaseBreakMonths} months rent`} />
-                <StatCard label="Projected Home Price Increase (12 mo)" value={formatCurrency(priceIncreaseYear)} color="blue"
-                  sub={`Based on ${inputs.appreciationRate}% annual appreciation`} />
-                <StatCard
-                  label="Months for Appreciation to Offset Fee"
-                  value={`${monthsToRecoup.toFixed(1)} months`}
-                  color="blue"
-                  sub="At the current appreciation rate"
-                />
-              </div>
-              <p className="mt-4 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
-                {leaseBreakCost < priceIncreaseYear
-                  ? `At these inputs, the projected 12-month home price increase (${formatCurrency(priceIncreaseYear)}) exceeds the estimated lease break fee (${formatCurrency(leaseBreakCost)}) by ${formatCurrency(priceIncreaseYear - leaseBreakCost)}. Individual lease terms, market conditions, and personal circumstances will vary.`
-                  : `At these inputs, the estimated lease break fee (${formatCurrency(leaseBreakCost)}) exceeds the projected 12-month home price increase (${formatCurrency(priceIncreaseYear)}) by ${formatCurrency(leaseBreakCost - priceIncreaseYear)}. Individual lease terms, market conditions, and personal circumstances will vary.`}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── DEEP DIVE ACCORDIONS ────────────────────────────────────────── */}
-        <div>
-          <h2 className="font-bold text-gray-900 text-base mb-3">Dig Deeper</h2>
+          <h2 className="font-bold text-gray-900 text-base mb-3">More detail (optional)</h2>
           <div className="space-y-3">
 
-            {/* Amortization */}
+            <Accordion title="More assumptions" subtitle="Loan term, extra payments, rent inflation, lease-break fee, savings race">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+                <div className="space-y-5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Buying — Advanced</p>
+                  <SliderRow label="Loan Term" value={inputs.loanTermYears} min={10} max={30} step={5}
+                    onChange={v => update('loanTermYears', v)} suffix=" years" />
+                  <SliderRow label="Extra Monthly Payment" value={inputs.extraMonthlyPayment} min={0} max={2000} step={50}
+                    onChange={v => update('extraMonthlyPayment', v)} prefix="$"
+                    hint="Pay extra to reduce interest & pay off early" />
+                </div>
+                <div className="space-y-5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Renting — Advanced</p>
+                  <SliderRow label="Rent Inflation" value={inputs.rentInflationRate} min={0} max={8} step={0.25}
+                    onChange={v => update('rentInflationRate', v)} suffix="% / yr"
+                    hint="Historical Denver avg: ~3%/yr" />
+                  <SliderRow label="Lease Break Fee" value={inputs.leaseBreakMonths} min={0} max={6} step={1}
+                    onChange={v => update('leaseBreakMonths', v)} suffix=" months rent" />
+                </div>
+              </div>
+            </Accordion>
+
             <Accordion title="Amortization Schedule" subtitle="See how every payment splits between principal and interest over time">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -529,7 +487,6 @@ export default function Home() {
                   </AreaChart>
                 </ResponsiveContainer>
 
-                {/* Condensed table — first 10 years */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
@@ -558,14 +515,16 @@ export default function Home() {
               </div>
             </Accordion>
 
-            {/* Net Worth */}
-            <Accordion title="Net Worth Comparison" subtitle="Owner housing equity vs. renter at 1, 5, 10, and 30 years">
+            <Accordion title="Net Worth Comparison" subtitle="Owner housing equity vs. renter invested-gap illustration at 1, 5, 10, and 30 years">
               <div className="space-y-4">
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-                  <span className="inline-block mr-1">ℹ</span>
                   <strong>Owner net worth</strong> = home equity (down payment + principal paid down + appreciation) minus closing costs.
                   Home appreciates {inputs.appreciationRate}%/yr. Mortgage payment stays fixed.
-                  <strong className="block mt-1 text-red-700">★ Renter housing net worth = $0 at every milestone. Renting builds no equity — ever.</strong>
+                  <span className="block mt-1">
+                    <strong>Renter illustration</strong> = the monthly buy−rent gap invested at {derived.illustrativeInvestReturnPct}%/yr
+                    (S&amp;P 500-like assumption, compounded monthly). Housing equity from renting remains $0.
+                    This is an estimate, not advice. If rent already costs more monthly, the invested gap is $0.
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {derived.netWorthMilestones.map(m => (
@@ -575,12 +534,12 @@ export default function Home() {
                         <div>
                           <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Owner</p>
                           <p className="font-mono text-lg font-black text-blue-800">{formatCurrencyCompact(m.ownerNetWorth)}</p>
-                          <p className="text-xs text-blue-500">housing equity</p>
+                          <p className="text-xs text-blue-500">housing net worth</p>
                         </div>
                         <div className="border-t border-blue-200 pt-2">
-                          <p className="text-xs text-red-500 font-semibold uppercase tracking-wide">Renter</p>
-                          <p className="font-mono text-lg font-black text-red-700">$0</p>
-                          <p className="text-xs text-red-400">no equity built</p>
+                          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Renter (invested gap)</p>
+                          <p className="font-mono text-lg font-black text-gray-800">{formatCurrencyCompact(m.renterNetWorth)}</p>
+                          <p className="text-xs text-gray-400">illustration at {derived.illustrativeInvestReturnPct}%</p>
                         </div>
                       </div>
                     </div>
@@ -594,17 +553,13 @@ export default function Home() {
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <ReferenceLine y={0} stroke="#e5e7eb" />
                     <Bar dataKey="Owner" fill="#1D4ED8" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Renter" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Renter invested gap" fill="#6b7280" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-                <p className="text-xs text-gray-400 text-center">Renter bar is always $0. Owner equity grows through loan paydown and home appreciation.</p>
               </div>
             </Accordion>
 
-
-
-            {/* True Cost of Renting */}
-            <Accordion title="True Cost of Renting" subtitle="How much total rent will you pay over 1, 5, 10, and 30 years — vs. the equity you'd have from owning?">
+            <Accordion title="True Cost of Renting" subtitle="Total rent paid over 1, 5, 10, and 30 years vs. equity from owning">
               <div className="space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[1, 5, 10, 30].map(years => {
@@ -614,14 +569,17 @@ export default function Home() {
                       if (m > 0 && m % 12 === 0) r *= (1 + inputs.rentInflationRate / 100);
                       cumRent += r;
                     }
-                    // Equity from owning at same milestone
                     const milestone = derived.equityMilestones.find(e => e.years === years);
                     const ownerEquity = milestone ? milestone.equity : null;
+                    const invested = derived.netWorthMilestones.find(e => e.years === years)?.renterNetWorth;
                     return (
                       <div key={years} className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
                         <p className="text-xs text-red-500 mb-1 font-semibold">{years === 1 ? '1 Year' : `${years} Years`}</p>
                         <p className="font-mono text-base font-bold text-red-800">{formatCurrencyCompact(cumRent)}</p>
-                        <p className="text-xs text-red-400 mt-0.5">$0 equity</p>
+                        <p className="text-xs text-red-400 mt-0.5">$0 housing equity</p>
+                        {invested != null && (
+                          <p className="text-xs text-gray-500 mt-1">Invested-gap illustration: {formatCurrencyCompact(invested)}</p>
+                        )}
                         {ownerEquity !== null && (
                           <p className="font-mono text-base font-bold text-green-700 mt-2">{formatCurrencyCompact(ownerEquity)}</p>
                         )}
@@ -633,7 +591,8 @@ export default function Home() {
                   })}
                 </div>
                 <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
-                  ★ Assumes rent increases {inputs.rentInflationRate}% per year. All rent payments build zero equity.
+                  ★ Assumes rent increases {inputs.rentInflationRate}% per year. Rent payments do not build housing equity.
+                  The invested-gap figures above are an illustration at {derived.illustrativeInvestReturnPct}%/yr, not advice.
                   After 30 years as a renter, your monthly rent would be{' '}
                   <strong>{formatCurrency(inputs.monthlyRent * Math.pow(1 + inputs.rentInflationRate / 100, 30))}/mo</strong>.
                 </p>
@@ -673,13 +632,62 @@ export default function Home() {
               </div>
             </Accordion>
 
-            {/* Savings Race Chart — last accordion */}
-            <Accordion title="The Savings Race (Chart)" subtitle="Can you save faster than home prices rise? See the gap over 6 years">
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600">
-                  Blue = what you've saved. Red = how much more expensive the home has become.
-                  You need to save at least <strong>{formatCurrency(monthlyAppreciation)}/mo</strong> just to keep pace.
+            <Accordion title="Can You Save Faster Than Prices Rise?" subtitle="Monthly savings toward a down payment vs. home price growth">
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  Note: If your monthly savings equal the monthly appreciation, the net effect on your purchasing position is neutral — your down payment grows, but so does the price of the home by roughly the same amount.
                 </p>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Monthly Savings Toward Down Payment</label>
+                    <span className="font-mono text-sm font-bold text-gray-900">{formatCurrency(inputs.monthlySavingsAmount)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={savingsSteps.length - 1}
+                    step={1}
+                    value={savingsIndex}
+                    onChange={e => update('monthlySavingsAmount', savingsSteps[parseInt(e.target.value)])}
+                    className="w-full h-1.5 rounded-full accent-blue-600 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>$0</span>
+                    <span>$5,000</span>
+                    <span>$15,000</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <StatCard label="You Save / Month" value={formatCurrency(inputs.monthlySavingsAmount)} color="blue" />
+                  <StatCard label="Home Gains / Month" value={formatCurrency(monthlyAppreciation)} color={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'green' : 'red'}
+                    sub={`${inputs.appreciationRate}% / yr appreciation`} />
+                  <StatCard
+                    label={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'Getting Closer' : 'Falling Behind'}
+                    value={formatCurrency(Math.abs(inputs.monthlySavingsAmount - monthlyAppreciation)) + '/mo'}
+                    color={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'green' : 'red'}
+                    sub={inputs.monthlySavingsAmount >= monthlyAppreciation ? 'ahead of appreciation' : 'behind appreciation'}
+                  />
+                </div>
+                {inputs.monthlySavingsAmount === 0 ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+                    Set a monthly savings amount above to see how it compares to home price growth.
+                  </div>
+                ) : inputs.monthlySavingsAmount < monthlyAppreciation ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+                    At this savings rate, your down payment grows by <strong>{formatCurrency(inputs.monthlySavingsAmount)}/mo</strong>, while the home price increases by approximately <strong>{formatCurrency(monthlyAppreciation)}/mo</strong>.
+                    The net change in your purchasing position is <strong>−{formatCurrency(monthlyAppreciation - inputs.monthlySavingsAmount)}/mo</strong>.
+                    To keep pace with appreciation, savings of at least <strong>{formatCurrency(monthlyAppreciation)}/mo</strong> would be needed.
+                  </div>
+                ) : inputs.monthlySavingsAmount === monthlyAppreciation ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+                    Your savings rate matches the monthly appreciation. Your down payment balance increases, but so does the home price by roughly the same amount — your net purchasing position stays approximately the same.
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+                    Your savings exceed the monthly appreciation by <strong>{formatCurrency(inputs.monthlySavingsAmount - monthlyAppreciation)}/mo</strong>.
+                    At this rate, your purchasing position is improving over time.
+                  </div>
+                )}
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={savingsData}>
                     <defs>
@@ -715,14 +723,40 @@ export default function Home() {
               </div>
             </Accordion>
 
+            <Accordion title="Lease Break Cost vs. Home Price Change" subtitle="Estimated lease-break fee compared with projected 12-month price change">
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500">
+                  This compares the estimated cost of breaking a lease early against the projected change in home price over the same period, based on the appreciation rate entered above.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <StatCard label="Estimated Lease Break Fee" value={formatCurrency(leaseBreakCost)} color="blue" sub={`${inputs.leaseBreakMonths} months rent`} />
+                  <StatCard label="Projected Home Price Increase (12 mo)" value={formatCurrency(priceIncreaseYear)} color="blue"
+                    sub={`Based on ${inputs.appreciationRate}% annual appreciation`} />
+                  <StatCard
+                    label="Months for Appreciation to Offset Fee"
+                    value={`${monthsToRecoup.toFixed(1)} months`}
+                    color="blue"
+                    sub="At the current appreciation rate"
+                  />
+                </div>
+                <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
+                  {leaseBreakCost < priceIncreaseYear
+                    ? `At these inputs, the projected 12-month home price increase (${formatCurrency(priceIncreaseYear)}) exceeds the estimated lease break fee (${formatCurrency(leaseBreakCost)}) by ${formatCurrency(priceIncreaseYear - leaseBreakCost)}. Individual lease terms, market conditions, and personal circumstances will vary.`
+                    : `At these inputs, the estimated lease break fee (${formatCurrency(leaseBreakCost)}) exceeds the projected 12-month home price increase (${formatCurrency(priceIncreaseYear)}) by ${formatCurrency(leaseBreakCost - priceIncreaseYear)}. Individual lease terms, market conditions, and personal circumstances will vary.`}
+                </p>
+              </div>
+            </Accordion>
+
           </div>
         </div>
 
-        {/* Footer Disclaimer */}
         <footer className="border-t border-gray-200 pt-6 pb-8 text-xs text-gray-400 space-y-3">
           <p className="font-semibold text-gray-500 text-sm">Important Disclosures</p>
           <p>
             This calculator is provided for <strong>educational and illustrative purposes only</strong>. All figures are estimates based on the inputs you provide and general market assumptions. Results do not constitute financial, legal, tax, or real estate advice, and should not be relied upon as the basis for any financial decision.
+          </p>
+          <p>
+            The renter “invested monthly gap” path assumes leftover cash (buy cost minus rent, when buy is higher) is contributed monthly to a portfolio that compounds at {ILLUSTRATIVE_SP500_ANNUAL_RETURN_PCT}% per year. That rate is an S&amp;P 500-like illustration only — not a historical claim for any specific period, not a guarantee, and not investment advice. Actual returns vary and can be negative.
           </p>
           <p>
             Home values, interest rates, rental prices, and market conditions change frequently and vary significantly by neighborhood, property type, and individual circumstances. The appreciation rate, property tax rate, HOA fees, insurance costs, and other assumptions used here are generalizations and may not reflect your specific situation.
@@ -739,6 +773,8 @@ export default function Home() {
         </footer>
 
       </main>
+
+      <StickyCtaBar visible={hasTouchedSlider} onBreakdown={onBreakdown} />
     </div>
   );
 }
