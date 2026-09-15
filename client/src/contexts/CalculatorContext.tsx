@@ -16,6 +16,11 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  ILLUSTRATIVE_SP500_ANNUAL_RETURN_PCT,
+  futureValueOfMonthlyContributions,
+} from '@/lib/compound';
+import { parseCoreInputsFromSearch } from '@/lib/parentBridge';
 
 export interface CalculatorInputs {
   // Purchase inputs
@@ -87,6 +92,12 @@ export interface NetWorthMilestone {
   cumulativeMortgagePaid: number;
 }
 
+export interface RenterInvestedMilestone {
+  years: number;
+  investedBalance: number;
+  monthlyContribution: number;
+}
+
 export interface CalculatorDerived {
   // Monthly costs
   monthlyMortgagePI: number;
@@ -119,6 +130,11 @@ export interface CalculatorDerived {
   // Net worth milestones
   netWorthMilestones: NetWorthMilestone[];
 
+  // Renter "invest the monthly gap" illustration (S&P 500-like)
+  monthlyInvestGap: number;
+  renterInvestedMilestones: RenterInvestedMilestone[];
+  illustrativeInvestReturnPct: number;
+
   // Lease break analysis
   leaseBreakCost: number;
   costOfWaitingOneYear: number;
@@ -147,7 +163,8 @@ const DEFAULT_INPUTS: CalculatorInputs = {
   extraMonthlyPayment: 0,
   leaseBreakMonths: 2,
   monthlySavingsAmount: 1500,
-  investmentReturnRate: 7.0,
+  // Illustrative S&P 500-like annual return for the "invest the gap" path. Not advice.
+  investmentReturnRate: ILLUSTRATIVE_SP500_ANNUAL_RETURN_PCT,
 };
 
 export { DEFAULT_INPUTS };
@@ -224,6 +241,11 @@ function deriveCalculations(inputs: CalculatorInputs): CalculatorDerived {
   const totalMonthlyOwnership = monthlyMortgagePI + monthlyPropertyTax + monthlyInsurance + monthlyMaintenance + hoaMonthly;
   const totalMonthlyRent = monthlyRent + renterInsurance;
 
+  // Investable monthly gap: buy − rent, only when buying costs more.
+  // If renting costs more monthly, the investable gap is $0 (no extra cash to park in a portfolio).
+  const monthlyInvestGap = Math.max(0, totalMonthlyOwnership - totalMonthlyRent);
+  const illustrativeInvestReturnPct = investmentReturnRate;
+
   // Amortization schedules
   const amortizationSchedule = buildAmortization(loanAmount, interestRate, termMonths, 0, homePrice, appreciationRate);
   const amortizationWithExtra = buildAmortization(loanAmount, interestRate, termMonths, extraMonthlyPayment, homePrice, appreciationRate);
@@ -282,8 +304,14 @@ function deriveCalculations(inputs: CalculatorInputs): CalculatorDerived {
     const ownerEquity = downPaymentAmount + (loanAmount - ownerLoanBalance) + (ownerHomeValue - homePrice);
     const ownerNetWorth = ownerEquity - totalCashNeeded; // net of initial cash invested
 
-    // Renter net worth = $0 — renting builds no equity and no housing-based wealth
-    const renterNetWorth = 0;
+    // Renter path: invest the monthly payment gap (buy − rent) in an S&P 500-like
+    // portfolio at the illustrative annual return. Replaces the old renter = $0 model.
+    // Housing equity from renting is still $0; this is a portfolio illustration only.
+    const renterNetWorth = futureValueOfMonthlyContributions(
+      monthlyInvestGap,
+      years,
+      illustrativeInvestReturnPct,
+    );
 
     // Cumulative rent paid (with inflation)
     let cumulativeRent = 0;
@@ -304,11 +332,22 @@ function deriveCalculations(inputs: CalculatorInputs): CalculatorDerived {
       ownerHomeValue,
       ownerLoanBalance,
       ownerEquity,
-      renterSavings: 0,
+      renterSavings: renterNetWorth,
       cumulativeRentPaid: cumulativeRent,
       cumulativeMortgagePaid,
     };
   });
+
+  const renterInvestYears = [1, 3, 5, 10];
+  const renterInvestedMilestones: RenterInvestedMilestone[] = renterInvestYears.map(years => ({
+    years,
+    monthlyContribution: monthlyInvestGap,
+    investedBalance: futureValueOfMonthlyContributions(
+      monthlyInvestGap,
+      years,
+      illustrativeInvestReturnPct,
+    ),
+  }));
 
   // Lease break analysis
   const leaseBreakCost = monthlyRent * leaseBreakMonths;
@@ -348,6 +387,9 @@ function deriveCalculations(inputs: CalculatorInputs): CalculatorDerived {
     payoffDateWithExtra: formatPayoffDate(payoffMonthWithExtra),
     equityMilestones,
     netWorthMilestones,
+    monthlyInvestGap,
+    renterInvestedMilestones,
+    illustrativeInvestReturnPct,
     leaseBreakCost,
     costOfWaitingOneYear: priceIncreaseInOneYear,
     homeValueInOneYear,
@@ -369,7 +411,11 @@ interface CalculatorContextType {
 const CalculatorContext = createContext<CalculatorContextType | null>(null);
 
 export function CalculatorProvider({ children }: { children: React.ReactNode }) {
-  const [inputs, setInputs] = useState<CalculatorInputs>(DEFAULT_INPUTS);
+  const [urlInputs] = useState(() =>
+    typeof window !== 'undefined' ? parseCoreInputsFromSearch(window.location.search) : {},
+  );
+  const urlLockedRate = urlInputs.interestRate != null;
+  const [inputs, setInputs] = useState<CalculatorInputs>({ ...DEFAULT_INPUTS, ...urlInputs });
   const [rateLoading, setRateLoading] = useState(false);
   const [rateFetched, setRateFetched] = useState(false);
 
@@ -381,8 +427,10 @@ export function CalculatorProvider({ children }: { children: React.ReactNode }) 
     setInputs(DEFAULT_INPUTS);
   }, []);
 
-  // Fetch latest mortgage rate from FRED API (no key required for observation endpoint)
+  // Fetch latest mortgage rate from FRED API (no key required for observation endpoint).
+  // Skip overwrite when the iframe/querystring already supplied `rate`.
   useEffect(() => {
+    if (urlLockedRate) return;
     const fetchRate = async () => {
       setRateLoading(true);
       try {
@@ -407,7 +455,7 @@ export function CalculatorProvider({ children }: { children: React.ReactNode }) 
       }
     };
     fetchRate();
-  }, []);
+  }, [urlLockedRate]);
 
   const derived = useMemo(() => deriveCalculations(inputs), [inputs]);
 
